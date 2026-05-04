@@ -1,0 +1,13 @@
+{
+  "name": "xwz-car-parking-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Microservices scaffold for the XWZ Car Parking Management System",
+  "scripts": {
+    "dev": "concurrently \"npm --prefix api-gateway run dev\" \"npm --prefix auth-service run dev\" \"npm --prefix parking-service run dev\" \"npm --prefix entry-service run dev\" \"npm --prefix billing-service run dev\" \"npm --prefix reporting-service run dev\"",
+    "start": "concurrently \"npm --prefix api-gateway run start\" \"npm --prefix auth-service run start\" \"npm --prefix parking-service run start\" \"npm --prefix entry-service run start\" \"npm --prefix billing-service run start\" \"npm --prefix reporting-service run start\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
