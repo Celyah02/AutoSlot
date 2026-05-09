@@ -1,4 +1,21 @@
 const express = require('express');
+const {
+  getAdminAccess,
+  getAttendantAccess,
+  getProfile,
+  login,
+  registerByAdmin,
+  register,
+  verifyToken
+} = require('../controllers/authController');
+const { authenticate, authorizeRoles } = require('../middleware/authMiddleware');
+const { validateRequest } = require('../middleware/validateRequest');
+const {
+  adminUserValidationRules,
+  loginValidationRules,
+  registerValidationRules
+} = require('../validators/authValidators');
+const { ROLES } = require('../constants/roles');
 
 const router = express.Router();
 
@@ -10,28 +27,24 @@ router.get('/health', (req, res) => {
   });
 });
 
-router.post('/register', (req, res) => {
-  res.status(501).json({
-    service: 'auth-service',
-    endpoint: 'register',
-    message: 'Registration logic has not been implemented yet'
-  });
-});
-
-router.post('/login', (req, res) => {
-  res.status(501).json({
-    service: 'auth-service',
-    endpoint: 'login',
-    message: 'Login logic has not been implemented yet'
-  });
-});
-
-router.get('/verify', (req, res) => {
-  res.status(501).json({
-    service: 'auth-service',
-    endpoint: 'verify',
-    message: 'JWT verification logic has not been implemented yet'
-  });
-});
+router.post('/register', registerValidationRules, validateRequest, register);
+router.post('/login', loginValidationRules, validateRequest, login);
+router.post(
+  '/admin/users',
+  authenticate,
+  authorizeRoles(ROLES.ADMIN),
+  adminUserValidationRules,
+  validateRequest,
+  registerByAdmin
+);
+router.get('/verify', authenticate, verifyToken);
+router.get('/me', authenticate, getProfile);
+router.get('/admin/access', authenticate, authorizeRoles(ROLES.ADMIN), getAdminAccess);
+router.get(
+  '/attendant/access',
+  authenticate,
+  authorizeRoles(ROLES.ADMIN, ROLES.PARKING_ATTENDANT),
+  getAttendantAccess
+);
 
 module.exports = router;
