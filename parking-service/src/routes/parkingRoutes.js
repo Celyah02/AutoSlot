@@ -1,4 +1,17 @@
 const express = require('express');
+const {
+  createParking,
+  getParkingByCode,
+  listParkingLocations
+} = require('../controllers/parkingController');
+const { ROLES } = require('../constants/roles');
+const { authenticate, authorizeRoles } = require('../middleware/authMiddleware');
+const { validateRequest } = require('../middleware/validateRequest');
+const {
+  createParkingValidationRules,
+  paginationValidationRules,
+  parkingCodeValidationRules
+} = require('../validators/parkingValidators');
 
 const router = express.Router();
 
@@ -10,20 +23,31 @@ router.get('/health', (req, res) => {
   });
 });
 
-router.get('/spaces', (req, res) => {
-  res.status(501).json({
-    service: 'parking-service',
-    endpoint: 'spaces',
-    message: 'Available parking lookup has not been implemented yet'
-  });
-});
+router.post(
+  '/',
+  authenticate,
+  authorizeRoles(ROLES.ADMIN),
+  createParkingValidationRules,
+  validateRequest,
+  createParking
+);
 
-router.post('/bookings', (req, res) => {
-  res.status(501).json({
-    service: 'parking-service',
-    endpoint: 'bookings',
-    message: 'Parking space booking has not been implemented yet'
-  });
-});
+router.get(
+  '/',
+  authenticate,
+  authorizeRoles(ROLES.ADMIN, ROLES.PARKING_ATTENDANT),
+  paginationValidationRules,
+  validateRequest,
+  listParkingLocations
+);
+
+router.get(
+  '/:code',
+  authenticate,
+  authorizeRoles(ROLES.ADMIN, ROLES.PARKING_ATTENDANT),
+  parkingCodeValidationRules,
+  validateRequest,
+  getParkingByCode
+);
 
 module.exports = router;
