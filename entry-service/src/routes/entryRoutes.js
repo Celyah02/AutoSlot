@@ -1,4 +1,17 @@
 const express = require('express');
+const {
+  getParkingDuration,
+  registerEntry,
+  registerExit
+} = require('../controllers/entryController');
+const { ROLES } = require('../constants/roles');
+const { authenticate, authorizeRoles } = require('../middleware/authMiddleware');
+const { validateRequest } = require('../middleware/validateRequest');
+const {
+  entryIdValidationRules,
+  registerEntryValidationRules,
+  registerExitValidationRules
+} = require('../validators/entryValidators');
 
 const router = express.Router();
 
@@ -10,28 +23,31 @@ router.get('/health', (req, res) => {
   });
 });
 
-router.post('/entries', (req, res) => {
-  res.status(501).json({
-    service: 'entry-service',
-    endpoint: 'entries',
-    message: 'Vehicle entry tracking has not been implemented yet'
-  });
-});
+router.post(
+  '/entries',
+  authenticate,
+  authorizeRoles(ROLES.ADMIN, ROLES.PARKING_ATTENDANT),
+  registerEntryValidationRules,
+  validateRequest,
+  registerEntry
+);
 
-router.post('/exits', (req, res) => {
-  res.status(501).json({
-    service: 'entry-service',
-    endpoint: 'exits',
-    message: 'Vehicle exit tracking has not been implemented yet'
-  });
-});
+router.post(
+  '/exits',
+  authenticate,
+  authorizeRoles(ROLES.ADMIN, ROLES.PARKING_ATTENDANT),
+  registerExitValidationRules,
+  validateRequest,
+  registerExit
+);
 
-router.get('/durations', (req, res) => {
-  res.status(501).json({
-    service: 'entry-service',
-    endpoint: 'durations',
-    message: 'Parking duration monitoring has not been implemented yet'
-  });
-});
+router.get(
+  '/durations/:id',
+  authenticate,
+  authorizeRoles(ROLES.ADMIN, ROLES.PARKING_ATTENDANT),
+  entryIdValidationRules,
+  validateRequest,
+  getParkingDuration
+);
 
 module.exports = router;

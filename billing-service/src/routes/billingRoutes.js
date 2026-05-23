@@ -1,4 +1,13 @@
 const express = require('express');
+const {
+  generateBilling,
+  getBillingByEntryId
+} = require('../controllers/billingController');
+const { validateRequest } = require('../middleware/validateRequest');
+const {
+  billingGenerationValidationRules,
+  entryIdValidationRules
+} = require('../validators/billingValidators');
 
 const router = express.Router();
 
@@ -10,20 +19,7 @@ router.get('/health', (req, res) => {
   });
 });
 
-router.get('/fees', (req, res) => {
-  res.status(501).json({
-    service: 'billing-service',
-    endpoint: 'fees',
-    message: 'Parking fee calculation has not been implemented yet'
-  });
-});
-
-router.post('/payments', (req, res) => {
-  res.status(501).json({
-    service: 'billing-service',
-    endpoint: 'payments',
-    message: 'Payment processing has not been implemented yet'
-  });
-});
+router.post('/generate', billingGenerationValidationRules, validateRequest, generateBilling);
+router.get('/entry/:entryId', entryIdValidationRules, validateRequest, getBillingByEntryId);
 
 module.exports = router;
