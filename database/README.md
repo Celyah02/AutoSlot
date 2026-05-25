@@ -77,6 +77,7 @@ Generated when a car exits.
 - Foreign key: `ticket_id -> tickets(id)`
 - `entry_id` is unique, so one car entry gets one billing record
 - `ticket_id` is unique, so one ticket maps to one billing record
+- Stores both `duration_minutes` for auditability and `duration_hours` for billing calculations/reporting
 
 ## Relationship Summary
 
@@ -90,7 +91,7 @@ Generated when a car exits.
 
 - `available_spaces` is stored because the system needs fast availability checks.
 - `charged_amount` is stored in `car_entries` for quick lookup after exit.
-- `billings` stores the final duration and total amount as a historical billing snapshot.
+- `billings` stores the final duration in minutes and hours, plus the total amount as a historical billing snapshot.
 - `ON DELETE RESTRICT` is used on core business tables to avoid accidental loss of important records.
 
 ## Simple Flow

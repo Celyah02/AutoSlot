@@ -1,9 +1,9 @@
 const pool = require('../config/db');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { AppError } = require('../utils/appError');
-const { logInfo, logError, logWarn } = require('../utils/logger');
+const { logInfo, logError } = require('../utils/logger');
 const { generateTicketNumber } = require('../utils/ticketGenerator');
-const { triggerBilling } = require('../services/billingClient');
+const { createBillingRecord } = require('../../../billing-service/src/services/billingService');
 
 const sanitizeEntry = (entry) => ({
   id: entry.id,
@@ -21,6 +21,17 @@ const sanitizeTicket = (ticket) => ({
   entryId: ticket.entry_id,
   issuedAt: ticket.issued_at,
   status: ticket.status
+});
+
+const sanitizeBilling = (billing) => ({
+  id: billing.id,
+  entryId: billing.entry_id,
+  ticketId: billing.ticket_id,
+  durationMinutes: Number(billing.duration_minutes),
+  durationHours: Number(billing.duration_hours),
+  totalAmount: Number(billing.total_amount),
+  generatedAt: billing.generated_at,
+  paymentStatus: billing.payment_status
 });
 
 const registerEntry = asyncHandler(async (req, res) => {
@@ -130,8 +141,7 @@ const registerExit = asyncHandler(async (req, res) => {
   const client = await pool.connect();
   let finalizedEntry;
   let finalizedTicket;
-  let parkingLocation;
-  let billingPayload;
+  let finalizedBilling;
 
   try {
     await client.query('BEGIN');
@@ -190,26 +200,16 @@ const registerExit = asyncHandler(async (req, res) => {
       throw new AppError('Parking location not found for this entry', 404);
     }
 
-    parkingLocation = parkingResult.rows[0];
-
     const exitTimestamp = new Date();
-    const entryTimestamp = new Date(entry.entry_date_time);
-    const durationMilliseconds = exitTimestamp.getTime() - entryTimestamp.getTime();
-    const durationMinutes = Math.max(1, Math.ceil(durationMilliseconds / (1000 * 60)));
-    const durationHours = durationMinutes / 60;
-    const chargedAmount = Number(
-      (durationHours * Number(parkingLocation.charging_fee_per_hour)).toFixed(2)
-    );
 
     const updatedEntryResult = await client.query(
       `
         UPDATE car_entries
-        SET exit_date_time = $1,
-            charged_amount = $2
-        WHERE id = $3
+        SET exit_date_time = $1
+        WHERE id = $2
         RETURNING id, plate_number, parking_code, entry_date_time, exit_date_time, charged_amount, created_at
       `,
-      [exitTimestamp, chargedAmount, entry.id]
+      [exitTimestamp, entry.id]
     );
 
     const updatedTicketResult = await client.query(
@@ -231,21 +231,17 @@ const registerExit = asyncHandler(async (req, res) => {
       [entry.parking_code]
     );
 
+    finalizedBilling = await createBillingRecord({
+      client,
+      entryId: entry.id,
+      ticketId: ticket.id
+    });
+
     await client.query('COMMIT');
 
     finalizedEntry = updatedEntryResult.rows[0];
+    finalizedEntry.charged_amount = finalizedBilling.total_amount;
     finalizedTicket = updatedTicketResult.rows[0];
-    billingPayload = {
-      entryId: finalizedEntry.id,
-      ticketId: finalizedTicket.id,
-      ticketNumber: finalizedTicket.ticket_number,
-      plateNumber: finalizedEntry.plate_number,
-      parkingCode: finalizedEntry.parking_code,
-      entryDateTime: finalizedEntry.entry_date_time,
-      exitDateTime: finalizedEntry.exit_date_time,
-      durationMinutes,
-      totalAmount: chargedAmount
-    };
   } catch (error) {
     await client.query('ROLLBACK');
     logError('Failed to register car exit', {
@@ -257,45 +253,20 @@ const registerExit = asyncHandler(async (req, res) => {
     client.release();
   }
 
-  let billingResult = {
-    triggered: false,
-    status: 'not_attempted',
-    message: 'Billing trigger was not attempted'
-  };
-
-  try {
-    billingResult = await triggerBilling(billingPayload);
-  } catch (error) {
-    billingResult = {
-      triggered: false,
-      status: 'failed',
-      message: error.message
-    };
-    logWarn('Billing service trigger failed after car exit', {
-      entryId: finalizedEntry.id,
-      ticketNumber: finalizedTicket.ticket_number,
-      error: error.message
-    });
-  }
-
   logInfo('Car exit registered', {
     entryId: finalizedEntry.id,
     ticketNumber: finalizedTicket.ticket_number,
     plateNumber: finalizedEntry.plate_number,
     parkingCode: finalizedEntry.parking_code,
     performedBy: req.user.email,
-    billingStatus: billingResult.status
+    billingStatus: 'completed'
   });
 
   res.status(200).json({
     message: 'Car exit registered successfully',
     entry: sanitizeEntry(finalizedEntry),
     ticket: sanitizeTicket(finalizedTicket),
-    bill: {
-      durationMinutes: billingPayload.durationMinutes,
-      totalAmount: billingPayload.totalAmount,
-      billingService: billingResult
-    }
+    bill: sanitizeBilling(finalizedBilling)
   });
 });
 

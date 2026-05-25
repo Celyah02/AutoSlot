@@ -9,7 +9,7 @@ This service manages vehicle entry and exit for the XWZ LTD car parking system.
 - Decreases available parking spaces on entry
 - Registers car exit with exit time and charged amount
 - Increases available parking spaces on exit
-- Attempts to trigger bill generation through the billing service
+- Generates and stores a bill as part of the exit workflow
 - Prevents entry when parking is full
 - Prevents exit when no matching entry exists
 - Logs requests and key actions
@@ -69,4 +69,4 @@ npm --prefix entry-service run dev
 - `entryDateTime` is generated automatically by PostgreSQL.
 - `exitDateTime` starts as `NULL`.
 - `chargedAmount` starts at `0` and is updated during exit.
-- Billing service handoff is prepared through `POST /api/billing/generate`. Full billing persistence will be finalized when the billing service is implemented.
+- Billing generation now uses the billing service rules to calculate billable hours, persist the billing record, and update `chargedAmount` before the exit transaction completes.

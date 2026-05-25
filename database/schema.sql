@@ -65,6 +65,7 @@ CREATE TABLE billings (
     entry_id BIGINT NOT NULL UNIQUE,
     ticket_id BIGINT NOT NULL UNIQUE,
     duration_minutes INTEGER NOT NULL,
+    duration_hours NUMERIC(10, 2) NOT NULL,
     total_amount NUMERIC(10, 2) NOT NULL,
     generated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     payment_status VARCHAR(20) NOT NULL DEFAULT 'pending',
@@ -80,6 +81,8 @@ CREATE TABLE billings (
         ON DELETE RESTRICT,
     CONSTRAINT chk_billings_duration
         CHECK (duration_minutes >= 0),
+    CONSTRAINT chk_billings_duration_hours
+        CHECK (duration_hours >= 0),
     CONSTRAINT chk_billings_total_amount
         CHECK (total_amount >= 0),
     CONSTRAINT chk_billings_payment_status
