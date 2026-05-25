@@ -1,4 +1,13 @@
 const express = require('express');
+const {
+  getRevenueSummary,
+  listEnteredCars,
+  listExitedCars
+} = require('../controllers/reportingController');
+const { ROLES } = require('../constants/roles');
+const { authenticate, authorizeRoles } = require('../middleware/authMiddleware');
+const { validateRequest } = require('../middleware/validateRequest');
+const { reportingQueryValidationRules } = require('../validators/reportingValidators');
 
 const router = express.Router();
 
@@ -10,20 +19,31 @@ router.get('/health', (req, res) => {
   });
 });
 
-router.get('/occupancy', (req, res) => {
-  res.status(501).json({
-    service: 'reporting-service',
-    endpoint: 'occupancy',
-    message: 'Location occupancy reporting has not been implemented yet'
-  });
-});
+router.get(
+  '/entries',
+  authenticate,
+  authorizeRoles(ROLES.ADMIN, ROLES.PARKING_ATTENDANT),
+  reportingQueryValidationRules,
+  validateRequest,
+  listEnteredCars
+);
 
-router.get('/realtime', (req, res) => {
-  res.status(501).json({
-    service: 'reporting-service',
-    endpoint: 'realtime',
-    message: 'Real-time reporting has not been implemented yet'
-  });
-});
+router.get(
+  '/exits',
+  authenticate,
+  authorizeRoles(ROLES.ADMIN, ROLES.PARKING_ATTENDANT),
+  reportingQueryValidationRules,
+  validateRequest,
+  listExitedCars
+);
+
+router.get(
+  '/revenue',
+  authenticate,
+  authorizeRoles(ROLES.ADMIN, ROLES.PARKING_ATTENDANT),
+  reportingQueryValidationRules,
+  validateRequest,
+  getRevenueSummary
+);
 
 module.exports = router;
